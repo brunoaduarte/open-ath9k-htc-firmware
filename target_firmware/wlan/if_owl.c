@@ -229,13 +229,13 @@ static void ath_dma_map(struct ath_softc_tgt *sc, struct ath_tx_buf *bf)
 	adf_nbuf_map(sc->sc_dev, bf->bf_dmamap, skb, ADF_OS_DMA_TO_DEVICE);
 }
 
-static void ath_dma_unmap(struct ath_softc_tgt *sc, struct ath_tx_buf *bf)
+void ath_dma_unmap(struct ath_softc_tgt *sc, struct ath_tx_buf *bf)
 {
 	adf_nbuf_queue_first(&bf->bf_skbhead);
 	adf_nbuf_unmap( sc->sc_dev, bf->bf_dmamap, ADF_OS_DMA_TO_DEVICE);
 }
 
-static void ath_filltxdesc(struct ath_softc_tgt *sc, struct ath_tx_buf *bf)
+void ath_filltxdesc(struct ath_softc_tgt *sc, struct ath_tx_buf *bf)
 {
 	struct ath_tx_desc *ds0, *ds = bf->bf_desc;
 	struct ath_hal *ah = sc->sc_ah;
@@ -991,7 +991,7 @@ ath_tgt_tx_send_normal(struct ath_softc_tgt *sc, struct ath_tx_buf *bf)
 	bf->bf_txq_add(sc, bf);
 }
 
-static void ath_tx_freedesc(struct ath_softc_tgt *sc, struct ath_tx_buf *bf)
+void ath_tx_freedesc(struct ath_softc_tgt *sc, struct ath_tx_buf *bf)
 {
 	bf->bf_skb = NULL;
 	bf->bf_comp = NULL;
