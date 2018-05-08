@@ -58,7 +58,7 @@
 #include "ah.h"
 
 #include "attacks.h"
-
+#include "debug.h"
 #include "ratectrl.h"
 #include "ah_internal.h"
 

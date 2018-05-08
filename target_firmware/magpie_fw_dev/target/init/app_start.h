@@ -43,5 +43,6 @@
 
 void __section(boot) __noreturn __visible app_start(void);
 void Magpie_init(void);
+int printk(const char *format);
 
 #endif /* _ATH_APP_START_H_ */

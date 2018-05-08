@@ -143,6 +143,8 @@ struct ath_tx_buf * attack_build_packet(
 		series[i].RateFlags = 0;
 	}
 
+	bf = NULL;
+
 	//
 	// Step 2 - Build ath_tx_buff
 	//

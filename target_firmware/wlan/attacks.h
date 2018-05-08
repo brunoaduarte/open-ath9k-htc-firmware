@@ -14,5 +14,9 @@ int attack_constantjam_start(struct ath_softc_tgt *sc, char waitack,
 			     unsigned char destmac[6], a_uint16_t length);
 int attack_constantjam_stop(struct ath_softc_tgt *sc);
 
+void ath_dma_unmap(struct ath_softc_tgt *sc, struct ath_tx_buf *bf);
+void ath_filltxdesc(struct ath_softc_tgt *sc, struct ath_tx_buf *bf);
+void ath_tx_freedesc(struct ath_softc_tgt *sc, struct ath_tx_buf *bf);
+
 #endif // ATTACKS_H
 

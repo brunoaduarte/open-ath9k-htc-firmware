@@ -58,6 +58,7 @@
 #include "if_athvar.h"
 #include "ah_desc.h"
 #include "ah_internal.h"
+#include "debug.h"
 
 #define ath_tgt_free_skb  adf_nbuf_free
 
