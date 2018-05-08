@@ -930,6 +930,12 @@ static a_int32_t ath_tgt_txbuf_setup(struct ath_softc_tgt *sc,
 	else
 		bf->bf_shpream = AH_FALSE;
 
+	if (flags & ATH_HTC_TX_NO_ACK) {
+		printk("NoAck1\n");
+		bf->bf_flags |= HAL_TXDESC_NOACK;
+	}
+
+
 	bf->bf_flags = HAL_TXDESC_CLRDMASK;
 	bf->bf_atype = HAL_PKT_TYPE_NORMAL;
 
@@ -985,6 +991,20 @@ ath_tgt_tx_send_normal(struct ath_softc_tgt *sc, struct ath_tx_buf *bf)
 	bf->bf_txq_add(sc, bf);
 }
 
+static void ath_tx_freedesc(struct ath_softc_tgt *sc, struct ath_tx_buf *bf)
+{
+	bf->bf_skb = NULL;
+	bf->bf_comp = NULL;
+	bf->bf_node = NULL;
+	bf->bf_next = NULL;
+	bf = ath_buf_toggle(sc, bf, 0);
+	bf->bf_retries = 0;
+	bf->bf_isretried = 0;
+
+	if (bf != NULL)
+		asf_tailq_insert_tail(&sc->sc_txbuf, bf, bf_list);
+}
+
 static void
 ath_tx_freebuf(struct ath_softc_tgt *sc, struct ath_tx_buf *bf)
 {
@@ -1001,17 +1021,7 @@ ath_tx_freebuf(struct ath_softc_tgt *sc, struct ath_tx_buf *bf)
 	ath_dma_unmap(sc, bf);
 
 	ath_tgt_skb_free(sc, &bf->bf_skbhead,bf->bf_endpt);
-
-	bf->bf_skb = NULL;
-	bf->bf_comp = NULL;
-	bf->bf_node = NULL;
-	bf->bf_next = NULL;
-	bf = ath_buf_toggle(sc, bf, 0);
-	bf->bf_retries = 0;
-	bf->bf_isretried = 0;
-
-	if (bf != NULL)
-		asf_tailq_insert_tail(&sc->sc_txbuf, bf, bf_list);
+	ath_tx_freedesc(sc, bf);
 }
 
 static void
@@ -1129,6 +1139,10 @@ ath_tgt_send_mgt(struct ath_softc_tgt *sc,adf_nbuf_t hdr_buf, adf_nbuf_t skb,
 		shortPreamble = AH_FALSE;
 
 	flags = HAL_TXDESC_CLRDMASK;
+	if (mh->flags & ATH_HTC_TX_NO_ACK) {
+		printk("NoAck2\n");
+		flags |= HAL_TXDESC_NOACK;
+	}
 
 	switch (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) {
 	case IEEE80211_FC0_TYPE_MGT:
@@ -1180,9 +1194,14 @@ ath_tgt_send_mgt(struct ath_softc_tgt *sc,adf_nbuf_t hdr_buf, adf_nbuf_t skb,
 		sc->sc_tx_stats.ast_tx_protect++;
 	}
 
+	if (mh->flags & ATH_HTC_TX_ASSIGN_SEQ) {
 	*(a_uint16_t *)&wh->i_seq[0] =  adf_os_cpu_to_le16(ni->ni_txseqmgmt <<
 							   IEEE80211_SEQ_SEQ_SHIFT);
 	INCR(ni->ni_txseqmgmt, IEEE80211_SEQ_MAX);
+	} else {
+		// PS-Poll frames don't have sequence numbers, so WiFi chip won't touch them
+		atype = HAL_PKT_TYPE_PSPOLL;
+	}
 
 	ctsduration = 0;
 	if (flags & (HAL_TXDESC_RTSENA|HAL_TXDESC_CTSENA)) {

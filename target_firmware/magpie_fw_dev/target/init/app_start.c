@@ -304,5 +304,14 @@ void __section(boot) __noreturn __visible app_start(void)
 
 	change_magpie_clk();
 #endif
+
+#if defined(PROJECT_K2)
+	printk("K2 chip ready\n");
+#elif defined(PROJECT_MAGPIE)
+	printk("Magpie chip ready\n");
+#else
+	printk("??? chip ready\n");
+#endif
+
 	wlan_task(); //never return
 }

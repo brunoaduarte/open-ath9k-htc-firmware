@@ -297,6 +297,10 @@ u_int64_t ar5416GetTsf64(struct ath_hal *ah)
 /******/
 /* RX */
 /******/
+a_uint32_t ar5416GetRxDP(struct ath_hal *ath) {
+	return ioread32_mac(AR_RXDP);
+}
+
 void ar5416SetRxDP(struct ath_hal *ah, a_uint32_t rxdp)
 {
 	iowrite32_mac(AR_RXDP, rxdp);
@@ -378,8 +382,12 @@ HAL_STATUS ar5416ProcRxDescFast_20(struct ath_hal *ah, struct ath_rx_desc *ds,
 	 * once and picked it up again...make sure the hw has moved on.
 	 */
 	if ((ands->ds_rxstatus8 & AR_RxDone) == 0
-	    && ioread32_mac(AR_RXDP) == pa)
+	    && ioread32_mac(AR_RXDP) == pa) {
+#ifdef DEBUG_RXQUEUE
+		printk("!");
+#endif
 		return HAL_EINPROGRESS;
+	}
 
 	/*
 	 * Now we need to get the stats from the descriptor. Since desc are
@@ -490,6 +498,11 @@ HAL_BOOL ar5416UpdateTxTrigLevel(struct ath_hal *ah, HAL_BOOL bIncTrigLevel)
         ar5416SetInterrupts(ah, omask);
 
         return (newLevel != curLevel);
+}
+
+a_uint32_t ar5416GetTxDP(struct ath_hal *ah, a_uint32_t q) {
+        HALASSERT(q < AH_PRIVATE(ah)->ah_caps.halTotalQueues);
+        return ioread32_mac(AR_QTXDP(q));
 }
 
 HAL_BOOL ar5416SetTxDP(struct ath_hal *ah, a_uint32_t q, a_uint32_t txdp)

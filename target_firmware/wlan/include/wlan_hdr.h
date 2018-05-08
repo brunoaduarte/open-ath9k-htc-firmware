@@ -47,6 +47,8 @@ struct  rx_frame_header {
 
 #define ATH_DATA_TYPE_AGGR       0x1
 #define ATH_DATA_TYPE_NON_AGGR   0x2
+#define ATH_HTC_TX_ASSIGN_SEQ    0x10
+#define ATH_HTC_TX_NO_ACK        0x20
 #define ATH_SHORT_PREAMBLE       0x1
 
 typedef struct _mgt_header {

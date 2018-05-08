@@ -56,6 +56,9 @@
 #include "if_athvar.h"
 #include "ah_desc.h"
 #include "ah.h"
+
+#include "attacks.h"
+
 #include "ratectrl.h"
 #include "ah_internal.h"
 
@@ -330,6 +333,10 @@ static void ath_uapsd_processtriggers(struct ath_softc_tgt *sc)
 	a_uint32_t cnt = 0;
 	a_uint16_t frame_len = 0;
 
+#ifdef DEBUG_RXQUEUE
+	printk(".");
+#endif
+
 #define	PA2DESC(_sc, _pa)						\
 	((struct ath_desc *)((caddr_t)(_sc)->sc_rxdma.dd_desc +		\
 			     ((_pa) - (_sc)->sc_rxdma.dd_desc_paddr)))
@@ -377,16 +384,25 @@ static void ath_uapsd_processtriggers(struct ath_softc_tgt *sc)
 		}
 
 		if (ds->ds_link == 0) {
+#ifdef DEBUG_RXQUEUE
+			printk("0");
+#endif
 			break;
 		}
 
 		if (bf->bf_status & ATH_BUFSTATUS_DONE) {
+#ifdef DEBUG_RXQUEUE
+			printk("D");
+#endif
 			continue;
 		}
 
 		retval = ah->ah_procRxDescFast(ah, ds, ds->ds_daddr,
 						PA2DESC(sc, ds->ds_link), &bf->bf_rx_status);
 		if (HAL_EINPROGRESS == retval) {
+#ifdef DEBUG_RXQUEUE
+			printk("P");
+#endif
 			break;
 		}
 
@@ -447,6 +463,10 @@ static void ath_uapsd_processtriggers(struct ath_softc_tgt *sc)
 		else {
 			ds = asf_tailq_next(ds, ds_list);
 		}
+
+#ifdef DEBUG_RXQUEUE
+		printk(">");
+#endif
 	}
 
 #undef PA2DESC
@@ -929,6 +949,7 @@ static a_int32_t ath_desc_alloc(struct ath_softc_tgt *sc)
 	asf_tailq_init(&sc->sc_rxdesc);
 	asf_tailq_init(&sc->sc_rxdesc_idle);
 
+	/** this works because descriptors follow eachother linearly in memory */
 	for (i = 0; i < ath_numrxdescs; i++, ds++) {
 
 		if (ds->ds_nbuf != ADF_NBUF_NULL) {
@@ -1047,6 +1068,15 @@ adf_os_irq_resp_t ath_intr(adf_drv_handle_t hdl)
 		if (status & (HAL_INT_RX | HAL_INT_RXEOL | HAL_INT_RXORN)) {
 			if (status & HAL_INT_RX)
 				sc->sc_int_stats.ast_rx++;
+
+#ifdef DEBUG_RXQUEUE
+			if (status & HAL_INT_RX)
+				printk("\niR");
+			if (status & HAL_INT_RXEOL)
+				printk("\niE");
+			if (status & HAL_INT_RXORN)
+				printk("\niO");
+#endif
 
 			ath_uapsd_processtriggers(sc);
 
@@ -1747,6 +1777,129 @@ static void ath_rc_mask_tgt(void *Context, A_UINT16 Command,
 	wmi_cmd_rsp(sc->tgt_wmi_handle, Command, SeqNo, NULL, 0);
 }
 
+static void ath_dmesg(void *Context, A_UINT16 Command,
+				A_UINT16 SeqNo, A_UINT8 *buffer, a_int32_t Length)
+{
+	struct ath_softc_tgt *sc = (struct ath_softc_tgt *)Context;
+	WMI_DEBUGMSG_CMD *cmd = (WMI_DEBUGMSG_CMD *)buffer;
+	WMI_DEBUGMSG_RESP cmd_rsp;
+	unsigned int offset;
+	
+	A_MEMSET(&cmd_rsp, 0, sizeof(cmd_rsp));
+
+	offset = adf_os_ntohs(cmd->offset);
+	cmd_rsp.length = get_dmesg(offset, cmd_rsp.buffer,
+					 sizeof(cmd_rsp.buffer));
+
+	wmi_cmd_rsp(sc->tgt_wmi_handle, Command, SeqNo, &cmd_rsp, sizeof(cmd_rsp));
+}
+
+static void ath_reactivejam(void *Context, A_UINT16 Command,
+			    A_UINT16 SeqNo, A_UINT8 *buffer, a_int32_t Length)
+{
+	struct ath_softc_tgt *sc = (struct ath_softc_tgt *)Context;
+	WMI_REACTIVEJAM_CMD *cmd = (WMI_REACTIVEJAM_CMD*)buffer;
+	char reply[] = "OK";
+	int i;
+
+	cmd->mduration = adf_os_ntohl(cmd->mduration);
+
+	printk("ReactJam ");
+	for (i = 0; i < 5; ++i) {
+		printk(itox(cmd->bssid[i]));
+		printk(":");
+	}
+	printk(itox(cmd->bssid[5]));
+	printk(" 0x");
+	printk(itox(cmd->mduration));
+	printk("ms\n");
+
+	// Reactive jamming is blocking. When the duration is zero, we jam indefinitely,
+	// meaning the the device will become unresponsive.
+	if (cmd->mduration == 0) cmd->mduration = 0xFFFFFFFF;
+	attack_reactivejam(sc, cmd->bssid, cmd->mduration);
+	wmi_cmd_rsp(sc->tgt_wmi_handle, Command, SeqNo, reply, sizeof(reply));
+}
+
+static void ath_fastreply(void *Context, A_UINT16 Command,
+			  A_UINT16 SeqNo, A_UINT8 *buffer, a_int32_t Length)
+{
+	static uint8_t reply[256];
+	static int replylen;
+	static struct ath_tx_buf *bf = NULL;
+	struct ath_softc_tgt *sc = (struct ath_softc_tgt *)Context;
+	WMI_FASTREPLY_CMD *cmd = (WMI_FASTREPLY_CMD*)buffer;
+	int rval = 0;
+
+	if (cmd->type == FASTREPLY_PACKET && cmd->pkt.offset + cmd->pkt.datalen < sizeof(reply))
+	{
+		replylen = cmd->pkt.length;
+		A_MEMCPY(reply + cmd->pkt.offset, cmd->pkt.data, cmd->pkt.datalen);
+
+		if (replylen == cmd->pkt.offset + cmd->pkt.datalen) {
+			// FIXME: This memory needs to be properly freed
+			bf = attack_build_packet(sc, reply, replylen, 1, NULL);
+			if (bf == NULL) rval = 1;
+		}
+	}
+	else if (cmd->type == FASTREPLY_START)
+	{
+		unsigned int duration = adf_os_ntohl(cmd->start.mduration);
+
+		// TODO: fastreply using `bf` as a packet
+		(void)duration;
+		printk("start fastreply\n");
+	}
+
+	wmi_cmd_rsp(sc->tgt_wmi_handle, Command, SeqNo, &rval, sizeof(rval));
+}
+
+static void ath_constantjam(void *Context, A_UINT16 Command,
+			      A_UINT16 SeqNo, A_UINT8 *buffer, a_int32_t Length)
+{
+	static int constjam_running = 0;
+	struct ath_softc_tgt *sc = (struct ath_softc_tgt *)Context;
+	WMI_CONSTANTJAM_CMD *cmd = (WMI_CONSTANTJAM_CMD*)buffer;
+	WMI_CONSTANTJAM_RESP cmd_resp;
+
+	cmd->len = adf_os_ntohs(cmd->len);
+
+	switch (cmd->request)
+	{
+	case CONSTJAM_START:
+		if (constjam_running) break;
+
+		if (cmd->conf_radio) {
+			// jamming of the channel, other clients can't see any traffic and sense channel busy
+			printk("contjam+radio\n");
+			attack_confradio(sc);
+			attack_constantjam_start(sc, 0, NULL, cmd->len);
+		} else {
+			// uninterrupted packet injection, useful to test number of packets per second possible
+			printk("contjam\n");
+			attack_constantjam_start(sc, 1, NULL, cmd->len);
+		}
+
+		constjam_running = 1;
+		break;
+
+	case CONSTJAM_STOP:
+		if (!constjam_running) break;
+
+		printk("stopjam\n");
+		attack_constantjam_stop(sc);
+		constjam_running = 0;
+		break;
+
+	case CONSTJAM_STATUS:
+		// Nothing special needed, status is always filled in.
+		break;
+	}
+
+	cmd_resp.status = constjam_running;
+	wmi_cmd_rsp(sc->tgt_wmi_handle, Command, SeqNo, &cmd_resp, sizeof(cmd_resp));
+}
+
 static WMI_DISPATCH_ENTRY Magpie_Sys_DispatchEntries[] =
 {
 	{handle_echo_command,         WMI_ECHO_CMDID,               0},
@@ -1781,6 +1934,12 @@ static WMI_DISPATCH_ENTRY Magpie_Sys_DispatchEntries[] =
 	{ath_rx_stats_tgt,            WMI_RX_STATS_CMDID,           0},
 	{ath_rc_mask_tgt,             WMI_BITRATE_MASK_CMDID,       0},
 	{ath_hal_reg_rmw_tgt,         WMI_REG_RMW_CMDID,            0},
+
+	/** New commands */
+	{ath_dmesg,                   WMI_DEBUGMSG_CMDID,           0},
+	{ath_reactivejam,             WMI_REACTIVEJAM_CMDID,        0},
+	{ath_fastreply,               WMI_FASTREPLY_CMDID,          0},
+	{ath_constantjam,             WMI_CONSTANTJAM_CMDID,        0},
 };
 
 /*****************/
@@ -1954,6 +2113,7 @@ a_int32_t ath_tgt_attach(a_uint32_t devid, struct ath_softc_tgt *sc, adf_os_devi
 	}
 
 	BUF_Pool_create_pool(sc->pool_handle, POOL_ID_WLAN_RX_BUF, ath_numrxdescs, 1664);
+	BUF_Pool_create_pool(sc->pool_handle, POOL_ID_ATTACKS, 5, 300);
 
 	ath_tgt_txq_setup(sc);
 	sc->sc_imask =0;

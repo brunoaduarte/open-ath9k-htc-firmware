@@ -52,6 +52,7 @@ typedef enum
     POOL_ID_WMI_SVC_CMD_REPLY   = 1,
     POOL_ID_WMI_SVC_EVENT       = 2,
     POOL_ID_WLAN_RX_BUF         = 3,
+    POOL_ID_ATTACKS             = 4,
     POOL_ID_MAX                 = 10
 } BUF_POOL_ID;
 

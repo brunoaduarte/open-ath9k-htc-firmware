@@ -163,6 +163,12 @@ typedef enum {
     WMI_RX_STATS_CMDID,
     WMI_BITRATE_MASK_CMDID,
     WMI_REG_RMW_CMDID,
+
+    /** New commands */
+    WMI_DEBUGMSG_CMDID = 0x0080,
+    WMI_REACTIVEJAM_CMDID,
+    WMI_FASTREPLY_CMDID,
+    WMI_CONSTANTJAM_CMDID,
 } WMI_COMMAND_ID;
 
 /*
@@ -258,6 +264,82 @@ typedef PREPACK struct {
     a_uint16_t     tupleNumH;
     WMI_AVT      avt[1];
 } POSTPACK WMI_ACCESS_MEMORY_CMD;
+
+/**
+ * WMI_DEBUGMSG_CMDID
+ */
+
+typedef PREPACK struct wmi_dmesg_cmd {
+	a_uint16_t offset;
+} POSTPACK WMI_DEBUGMSG_CMD;
+
+typedef PREPACK struct {
+	/** Length of zero signifies that no more data is available */
+	a_uint8_t length;
+	/** Debug message(s) **/
+	a_uint8_t buffer[40];
+} POSTPACK WMI_DEBUGMSG_RESP;
+
+/*
+ * WMI_REACTIVEJAM_CMDID
+ */
+typedef PREPACK struct {
+	/** target BSSID mac address */
+	a_uint8_t bssid[6];
+	/** duration in miliseconds */
+	a_uint32_t mduration;
+} POSTPACK WMI_REACTIVEJAM_CMD;
+
+/*
+ * WMI_CONSTANTJAM_CMDID
+ */
+
+typedef PREPACK struct {
+	/** A value from CONSTJAM_REQUEST to denote the request */
+	a_uint8_t request;
+	/** Set to 1 to disable CS and inter-frame-timeouts */
+	a_uint8_t conf_radio;
+	/** Length of the packet which is continuously transmitted */
+	a_uint16_t len;
+} POSTPACK WMI_CONSTANTJAM_CMD;
+
+typedef PREPACK struct {
+	/** Is 1 when jammer is running, 0 otherwise */
+	a_uint8_t status;
+} POSTPACK WMI_CONSTANTJAM_RESP;
+
+enum CONSTJAM_REQUEST {
+	CONSTJAM_START,
+	CONSTJAM_STOP,
+	CONSTJAM_STATUS
+};
+
+/*
+ * WMI_FASTREPLY_CMDID
+ */
+typedef PREPACK struct {
+	a_uint8_t type;
+	union {
+		// transmit response packet in multiple commands
+		struct {
+			a_uint8_t length;
+			a_uint8_t offset;
+			a_uint8_t datalen;
+			a_uint8_t data[40];
+		} pkt;
+		// command to start monitoring
+		struct {
+			a_uint32_t mduration;
+			a_uint8_t source[6];
+		} start;
+	};
+} POSTPACK WMI_FASTREPLY_CMD;
+
+enum FASTREPLY_TYPE {
+	FASTREPLY_PACKET,
+	FASTREPLY_START
+};
+
 
 /*
  * List of Events (target to host)
