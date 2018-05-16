@@ -255,6 +255,6 @@ ar5416AttachRateTables(struct atheros_softc *sc)
 {
     sc->hwRateTable[WIRELESS_MODE_11NG]  = &ar5416_11ngRateTable;
 #ifdef ATH_SUPPORT_A_MODE
-    sc->hwRateTable[WIRELESS_MODE_11NA]  = &ar5416_11naRateTable;
+    sc->hwRateTable[WIRELESS_MODE_11NA]  = &ar5416_11ngRateTable;
 #endif
 }

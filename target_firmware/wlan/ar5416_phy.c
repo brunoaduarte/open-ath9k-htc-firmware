@@ -183,7 +183,7 @@ ar5416GetRateTable(struct ath_hal *ah, a_uint32_t mode)
 	HAL_RATE_TABLE *rt;
 	switch (mode) {
 	case HAL_MODE_11A:
-		rt = &ar5416_11a_table;
+		rt = &ar5416_11g_table;
 		break;
 	case HAL_MODE_11B:
 		rt = &ar5416_11b_table;
@@ -195,7 +195,7 @@ ar5416GetRateTable(struct ath_hal *ah, a_uint32_t mode)
 		rt = &ar5416_11ng_table;
 		break;
 	case HAL_MODE_11NA:
-		rt = &ar5416_11na_table;
+		rt = &ar5416_11ng_table;
 		break;
 	default:
 		return AH_NULL;
@@ -314,7 +314,7 @@ ar5416GetRateTable(struct ath_hal *ah, a_uint32_t mode)
 		break;
 #ifdef ATH_SUPPORT_A_MODE
 	case HAL_MODE_11NA:
-		rt = &ar5416_11na_table;
+		rt = &ar5416_11ng_table;
 		break;
 #endif
 	default:
