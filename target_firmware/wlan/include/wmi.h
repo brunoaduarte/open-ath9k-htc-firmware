@@ -288,6 +288,11 @@ typedef PREPACK struct {
 	a_uint8_t bssid[6];
 	/** duration in miliseconds */
 	a_uint32_t mduration;
+	a_uint32_t jam_packet_length;
+	a_uint32_t jam_delay_us;
+	a_uint32_t jam_rate_index;
+	a_uint32_t match_on_position;
+	a_uint8_t match_packet_type;
 } POSTPACK WMI_REACTIVEJAM_CMD;
 
 /*

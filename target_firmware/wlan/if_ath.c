@@ -1803,6 +1803,10 @@ static void ath_reactivejam(void *Context, A_UINT16 Command,
 	int i;
 
 	cmd->mduration = adf_os_ntohl(cmd->mduration);
+	cmd->jam_packet_length = adf_os_ntohl(cmd->jam_packet_length);
+	cmd->jam_delay_us = adf_os_ntohl(cmd->jam_delay_us);
+	cmd->jam_rate_index = adf_os_ntohl(cmd->jam_rate_index);
+	cmd->match_on_position = adf_os_ntohl(cmd->match_on_position);
 
 	printk("ReactJam ");
 	for (i = 0; i < 5; ++i) {
@@ -1817,7 +1821,7 @@ static void ath_reactivejam(void *Context, A_UINT16 Command,
 	// Reactive jamming is blocking. When the duration is zero, we jam indefinitely,
 	// meaning the the device will become unresponsive.
 	if (cmd->mduration == 0) cmd->mduration = 0xFFFFFFFF;
-	attack_reactivejam(sc, cmd->bssid, cmd->mduration);
+	attack_reactivejam(sc, cmd->bssid, cmd->mduration, cmd->jam_packet_length, cmd->jam_delay_us, cmd->jam_rate_index, cmd->match_on_position, cmd->match_packet_type);
 	wmi_cmd_rsp(sc->tgt_wmi_handle, Command, SeqNo, reply, sizeof(reply));
 }
 
@@ -1838,7 +1842,7 @@ static void ath_fastreply(void *Context, A_UINT16 Command,
 
 		if (replylen == cmd->pkt.offset + cmd->pkt.datalen) {
 			// FIXME: This memory needs to be properly freed
-			bf = attack_build_packet(sc, reply, replylen, 1, NULL);
+			bf = attack_build_packet(sc, reply, replylen, 1, NULL, -1);
 			if (bf == NULL) rval = 1;
 		}
 	}
